@@ -3,7 +3,8 @@ const html404 = `<!DOCTYPE html>
   <h1>404 Not Found.</h1>
   <p>The url you visit is not found.</p>
 </body>`
-
+const VALID_TOKEN = '123'  // '' 为首页不鉴权
+const RECORD_TTL = 60*60*24 // 0 为永久保存
 
 async function randomString(len) {
 　　len = len || 6;
@@ -32,8 +33,12 @@ async function save_url(URL){
     let random_key=await randomString()
     let is_exist=await LINKS.get(random_key)
     console.log(is_exist)
-    if (is_exist == null)
+    if (is_exist == null){
+      if(RECORD_TTL > 0)
+        return await LINKS.put(random_key, URL, {expirationTtl: 60*60*24}),random_key
+      else
         return await LINKS.put(random_key, URL),random_key
+    }
     else
         save_url(URL)
 }
@@ -83,7 +88,10 @@ async function handleRequest(request) {
   const path = requestURL.pathname.split("/")[1]
   console.log(path)
   if(!path){
-
+    
+    if (VALID_TOKEN != '' && requestURL.searchParams.get('token') != VALID_TOKEN) {
+      return new Response("403 Forbidden", {status: 403})
+    }
     const html= await fetch("https://cdn.jsdelivr.net/gh/xyTom/Url-Shorten-Worker@gh-pages/index.html")
     
     return new Response(await html.text(), {
